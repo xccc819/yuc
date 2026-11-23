@@ -110,7 +110,7 @@ public class BaseHeaderSmoke {
         // 第三个接口用的是另一套会话：不该被 base 吞掉
         eps.add(ep("/c", "OTHER=zzz", "Bearer t0"));
 
-        Map<String, Object> doc = TemplateBuilder.domainDoc("https", "h5.aep.com.cn", 443, eps);
+        Map<String, Object> doc = TemplateBuilder.domainDoc("https", "h5.demo.com.cn", 443, eps);
         String json = MiniJson.pretty(doc);
 
         check("base 里有 headers", json.contains("\"headers\""));
@@ -167,8 +167,8 @@ public class BaseHeaderSmoke {
         // JSON 里的长字符串：展示截断，payload 完整
         String longValue = "x".repeat(200);
         String body = "{\"note\":\"" + longValue + "\"}";
-        Endpoint json = new Endpoint("POST", "https", "h5.aep.com.cn", 443, "/api/save",
-                "https://h5.aep.com.cn/api/save", "Proxy",
+        Endpoint json = new Endpoint("POST", "https", "h5.demo.com.cn", 443, "/api/save",
+                "https://h5.demo.com.cn/api/save", "Proxy",
                 new ArrayList<>(), new ArrayList<>(), new ArrayList<>(),
                 body.getBytes(StandardCharsets.UTF_8), "application/json", body,
                 "application/json", "{\"ok\":true}", 200, 20);
@@ -202,8 +202,8 @@ public class BaseHeaderSmoke {
         check("重启后 Cookie 值完整", a != null && "SID=aaa".equals(headerValue(a, "Cookie")));
 
         // 重启后导出的模板仍带 base.headers
-        String json = MiniJson.pretty(TemplateBuilder.domainDoc("https", "h5.aep.com.cn", 443,
-                s2.endpoints("h5.aep.com.cn:443")));
+        String json = MiniJson.pretty(TemplateBuilder.domainDoc("https", "h5.demo.com.cn", 443,
+                s2.endpoints("h5.demo.com.cn:443")));
         check("重启后导出的模板仍带 base.headers", json.contains("\"Cookie\""));
         s2.shutdown();
 
@@ -219,7 +219,7 @@ public class BaseHeaderSmoke {
     // -------------------------------------------- 老 json 的 base.headers
     static void legacyImport() {
         List<Endpoint> eps = TemplateImport.parse("{\n"
-                + "  \"base\": {\"scheme\": \"https\", \"host\": \"md.cnnc.cn\", \"port\": 443,\n"
+                + "  \"base\": {\"scheme\": \"https\", \"host\": \"md.demo.cn\", \"port\": 443,\n"
                 + "    \"headers\": {\"Cookie\": \"SID=old\", \"Cache-Control\": \"no-cache\"}},\n"
                 + "  \"items\": [{\"id\": \"a\", \"name\": \"GET /x\", \"method\": \"GET\", \"uri\": \"/x\"}]\n"
                 + "}");
@@ -237,7 +237,7 @@ public class BaseHeaderSmoke {
     /** 造一条带鉴权头 + 一个缓存头的端点。 */
     static Endpoint ep(String path, String cookie, String auth) {
         List<String[]> headers = new ArrayList<>();
-        headers.add(new String[]{"Host", "h5.aep.com.cn"});
+        headers.add(new String[]{"Host", "h5.demo.com.cn"});
         if (!cookie.isEmpty()) {
             headers.add(new String[]{"Cookie", cookie});
         }
@@ -252,8 +252,8 @@ public class BaseHeaderSmoke {
         for (String[] c : yuc.Urls.cookiePairs(cookie)) {
             cookies.add(c);
         }
-        return new Endpoint("GET", "https", "h5.aep.com.cn", 443, path,
-                "https://h5.aep.com.cn" + path, "Proxy",
+        return new Endpoint("GET", "https", "h5.demo.com.cn", 443, path,
+                "https://h5.demo.com.cn" + path, "Proxy",
                 new ArrayList<>(), cookies, headers, new byte[0],
                 "", "", "application/json", "{\"code\":0}", 200, 20);
     }

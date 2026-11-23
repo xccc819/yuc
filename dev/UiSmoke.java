@@ -52,8 +52,8 @@ public class UiSmoke {
         YucPanel panel = new YucPanel(api, store);
         check("面板构造成功", panel != null);
 
-        store.add(new Endpoint("GET", "https", "h5.aep.com.cn", 443, "/api/v1/list",
-                "https://h5.aep.com.cn/api/v1/list?page=1", "Proxy",
+        store.add(new Endpoint("GET", "https", "h5.demo.com.cn", 443, "/api/v1/list",
+                "https://h5.demo.com.cn/api/v1/list?page=1", "Proxy",
                 List.<String[]>of(new String[]{"page", "1"}), new ArrayList<String[]>(),
                 "application/json", "{\"q\":1}", "application/json",
                 "{\"code\":0,\"data\":{\"list\":[{\"id\":1}]}}", 200, 100));
@@ -207,8 +207,8 @@ public class UiSmoke {
         check("点「全部」回到所有接口", paths.getRowCount() == 2);
 
         // -------------------------------------- 同一接口多长度档
-        store.add(new Endpoint("GET", "https", "h5.aep.com.cn", 443, "/api/v1/list",
-                "https://h5.aep.com.cn/api/v1/list?page=1", "Proxy",
+        store.add(new Endpoint("GET", "https", "h5.demo.com.cn", 443, "/api/v1/list",
+                "https://h5.demo.com.cn/api/v1/list?page=1", "Proxy",
                 List.<String[]>of(new String[]{"page", "1"}), new ArrayList<String[]>(),
                 "application/json", "", "application/json",
                 "{\"code\":0,\"data\":{\"list\":[{\"id\":1},{\"id\":2}]}}", 200, 5000));
@@ -384,19 +384,19 @@ public class UiSmoke {
         check("导入的接口响应字节列显示「模板」", templateCell);
 
         // ------------------------------------- IP 按 /24 归组 + 分组默认收起
-        store.add(new Endpoint("GET", "http", "10.2.3.4", 8080, "/svc/ping",
-                "http://10.2.3.4:8080/svc/ping", "Proxy",
+        store.add(new Endpoint("GET", "http", "10.0.0.4", 8080, "/svc/ping",
+                "http://10.0.0.4:8080/svc/ping", "Proxy",
                 new ArrayList<String[]>(), new ArrayList<String[]>(),
                 null, "", "application/json", "{\"ok\":1}", 200, 90));
         SwingUtilities.invokeAndWait(() -> invoke(panel, "refreshAll"));
         check("IP 单独成一组（共 3 组）", root.getChildCount() == 3);
         boolean cidr = false;
         for (int i = 0; i < root.getChildCount(); i++) {
-            if (String.valueOf(root.getChildAt(i)).contains("10.2.3.0/24")) {
+            if (String.valueOf(root.getChildAt(i)).contains("10.0.0.0/24")) {
                 cidr = true;
             }
         }
-        check("IP 分组名是 10.2.3.0/24", cidr);
+        check("IP 分组名是 10.0.0.0/24", cidr);
 
         check("根节点展开着", tree.isExpanded(new javax.swing.tree.TreePath(root.getPath())));
         boolean anyOpen = false;
@@ -424,7 +424,7 @@ public class UiSmoke {
         int total = paths.getRowCount();
         check("当前一共 " + total + " 个接口", total == 4);
 
-        Endpoint ping = store.endpoints("10.2.3.4:8080").get(0);
+        Endpoint ping = store.endpoints("10.0.0.4:8080").get(0);
         String pingKey = ping.key;
         String pingDomain = ping.domainKey();
         check("IP 那个接口不是第一行", !endpointAt(panel, 0).key.equals(pingKey));
@@ -470,8 +470,8 @@ public class UiSmoke {
         check("有「清除颜色」", hasClear);
 
         // 按颜色排序（只有高级里能改）：直接塞字段，等价于在弹框里选
-        String listKey = store.endpoints("h5.aep.com.cn:443").get(0).key;
-        store.marks().set(yuc.Marks.PATH, "h5.aep.com.cn:443", listKey, 5);
+        String listKey = store.endpoints("h5.demo.com.cn:443").get(0).key;
+        store.marks().set(yuc.Marks.PATH, "h5.demo.com.cn:443", listKey, 5);
         set(panel, "pathSort", sortOf("ASC"));
         SwingUtilities.invokeAndWait(() -> invoke(panel, "applyFilter"));
         check("颜色升序：红（1）在蓝（5）前", endpointAt(panel, 0).key.equals(pingKey)

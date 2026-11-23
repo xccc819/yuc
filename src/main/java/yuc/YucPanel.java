@@ -76,6 +76,7 @@ public final class YucPanel extends JPanel {
     private final JButton importButton = new JButton("导入历史");
     private final JButton importJsonButton = new JButton("导入 JSON…");
     private final JButton headerButton = new JButton("请求头…");
+    private final JButton settingsButton = new JButton("设置…");
     private final JTextField dirField = new JTextField(22);
     private final JLabel statsLabel = new JLabel("域名 0 · 接口 0");
 
@@ -168,7 +169,7 @@ public final class YucPanel extends JPanel {
     private final Timer refreshTimer;
 
     private String selectedDomain;
-    /** 选中了根域分组节点（aep.com.cn / 10.2.3.0/24）时为分组名；与 selectedDomain 互斥。 */
+    /** 选中了根域分组节点（demo.com.cn / 10.0.0.0/24）时为分组名；与 selectedDomain 互斥。 */
     private String selectedGroup;
     /** 导入历史是否正在跑（防重复点击）。 */
     private boolean importing;
@@ -217,7 +218,8 @@ public final class YucPanel extends JPanel {
         header.setBorder(BorderFactory.createEmptyBorder(8, 10, 6, 10));
 
         JPanel titleRow = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("yuc v" + YucExtension.VERSION + " — 接口采集 / 模板导出");
+        JLabel title = new JLabel(YucExtension.NAME + " v" + YucExtension.VERSION
+                + " — 接口采集 / 模板导出");
         title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 2f));
         titleRow.add(title, BorderLayout.WEST);
         statsLabel.setForeground(muted());
@@ -257,6 +259,9 @@ public final class YucPanel extends JPanel {
         headerButton.setToolTipText("配置还原时统一套用的请求头（Authorization / Cookie 等），支持整段粘贴 Repeater 报文自动识别");
         headerButton.addActionListener(e -> editHeaders());
         row2.add(headerButton);
+        settingsButton.setToolTipText(store.settings().summary());
+        settingsButton.addActionListener(e -> editSettings());
+        row2.add(settingsButton);
         JButton save = new JButton("立即保存");
         save.setToolTipText("把所有域名立刻写盘（平时是自动防抖保存）");
         save.addActionListener(e -> {
@@ -468,15 +473,16 @@ public final class YucPanel extends JPanel {
     // ---------------------------------------------------------------- 刷新
 
     private void refreshAll() {
+        settingsButton.setToolTipText(store.settings().summary());
         rebuildTree();
         reloadDomain();
         updateStats();
     }
 
     /**
-     * 重建左侧树：全部 → 根域（aep.com.cn）/ IP 段（10.2.3.0/24）→ host:port。
+     * 重建左侧树：全部 → 根域（demo.com.cn）/ IP 段（10.0.0.0/24）→ host:port。
      * <p>
-     * 按根域分组是因为一次测试里 aep.com.cn 下往往有十几台机器（h5 / api / mweb / admin），
+     * 按根域分组是因为一次测试里 demo.com.cn 下往往有十几台机器（h5 / api / mweb / admin），
      * 平铺成一层会淹没真正想找的那台。IP 按 /24 归拢同理：内网一次扫就是一大段。
      * <p>
      * 分组**默认收起**：域名多了以后全展开要滚半天。用户点开过的那几组会被记住
@@ -615,7 +621,8 @@ public final class YucPanel extends JPanel {
             }
             endpoints = all;
         }
-        statsCache = Params.stats(endpoints, HeaderPolicy.collect(endpoints));
+        statsCache = Params.stats(endpoints, HeaderPolicy.collect(endpoints),
+                store.settings().maxResponseFields());
         applyFilter();
         refreshParams();
     }
@@ -863,7 +870,8 @@ public final class YucPanel extends JPanel {
     /** 当前该看哪批参数：选中了接口就看这几个，否则看整个域名（走缓存，别每次重算）。 */
     private List<Params.ParamStat> currentStats() {
         List<Endpoint> scope = selectedEndpoints();
-        return scope == endpoints ? statsCache : Params.stats(scope, HeaderPolicy.collect(scope));
+        return scope == endpoints ? statsCache
+                : Params.stats(scope, HeaderPolicy.collect(scope), store.settings().maxResponseFields());
     }
 
     /** 按 PARAM_SOURCES 的固定顺序拼来源名，集合是 HashSet，直接用会跳序。 */
@@ -938,6 +946,14 @@ public final class YucPanel extends JPanel {
             store.setDir(f);
             dirField.setText(f.getAbsolutePath());
             store.flushAll();
+        }
+    }
+
+    /** 设置页：收录范围（黑/白名单）+ 响应范围（解析上限、字段上限）。 */
+    private void editSettings() {
+        if (SettingsDialog.show(this, store)) {
+            refreshAll();     // 字段上限变了，参数表要重算
+            info("设置已保存：" + store.settings().summary());
         }
     }
 
@@ -2104,7 +2120,7 @@ public final class YucPanel extends JPanel {
         }
     }
 
-    /** 根域分组节点（aep.com.cn / 10.2.3.0/24），点它就看这一组下所有机器的接口。 */
+    /** 根域分组节点（demo.com.cn / 10.0.0.0/24），点它就看这一组下所有机器的接口。 */
     private static final class GroupNode {
         final String name;
         final String label;

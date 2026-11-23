@@ -11,9 +11,11 @@
 |---|---|
 | `src/main/java/yuc/YucExtension.java` | 入口，实现 `BurpExtension`；挂 HttpHandler、注册标签页、卸载时 flush |
 | `Capture.java` | **判定与组装的唯一出口**：7 个标准方法、`#`、末段含点、记录类型 `kindOf`（JSON / HTML）、空/超大响应、`bodyOf` 取正文，以及 `Endpoint` 拼装 |
+| `Settings.java` | 收录范围（黑/白名单 glob）与响应范围（解析上限、字段上限），存 `yuc.db` 的 `settings` 表 |
+| `SettingsDialog.java` | 设置页（Swing 弹框）：两个名单框 + 两个上限，文案压到最短（标题一行 + 示例一行） |
 | `Recorder.java` | 实时采集，实现 Montoya `HttpHandler`；只读流量，规则全部委托 `Capture` |
 | `HistoryImport.java` | 主动补捞：扫 `api.proxy().history()`，规则同样走 `Capture`；带进度与分类统计 |
-| `Db.java` | **SQLite 持久化**：`endpoints` + `endpoint_params` + `endpoint_samples` + `endpoint_sample_params` + `domain_headers` + `marks` 六张表，整域名重写，启动 `loadAll()`，老库自动补 `lengths` 列 |
+| `Db.java` | **SQLite 持久化**：`endpoints` + `endpoint_params` + `endpoint_samples` + `endpoint_sample_params` + `domain_headers` + `marks` + `settings` 七张表，整域名重写，启动 `loadAll()`，老库自动补 `lengths` 列 |
 | `TemplateImport.java` | 老数据迁移：解析目录里的 `域名_端口.json`，把参数反推回请求体（含嵌套 JSON / 数组 / 大整数） |
 | `HeaderProfile.java` | 请求头配置：宽容解析粘贴文本（整段报文/响应/裸 KV），还原时整组替换 |
 | `HeaderPolicy.java` | **哪些头进 `base.headers`** 的唯一判定：鉴权关键词白名单 + 缓存/协商/指纹黑名单 + 多值投票 |
@@ -165,6 +167,17 @@
     容器行不单独存库：原料是 `request_body`，重启后重算即可。参数表右键「复制参数值」取
     `ParamStat.payload`（完整值），不能用表格里那个截断过的 `example`。
 
+41. **收录范围与响应上限只有一份实现，界面和落库必须用同一个数**：`Settings` 里
+    `allows(host,path)` 决定收不收，`maxResponseFields` 同时传给 `Db.saveDomain` 和
+    `Params.stats`——只改一边会出现"库里 500 行、界面 1000 行"的错位。
+    glob 语义：`*` 任意串、`?` 单字符，**以 `/` 开头匹配路径、否则匹配 host**；
+    白名单为空 = 不过滤，非空 = 只收命中的，黑名单永远优先。默认黑名单 8 条
+    （google/github/shodan/fofa/adblockplus/bing/gov/edu）——这些站量大、占地方、学不到东西。
+    名单第一次运行才预置：用户清空后存的是空串，**不要再回填默认值**（`read()==null` 才给默认）。
+    上限只对之后写入生效（整域名重写时才用新值），文档里必须写清楚，否则用户会以为没生效。
+    持久化在 `yuc.db.settings` 表（不是 Burp preferences）：换机器拷库即带走；
+    `saveDomain` 的整域名重写和 `clearAll()` 都**不许**碰 `settings` 与 `marks`。
+
 ## 构建与测试
 
 ```bash
@@ -174,13 +187,13 @@ bash build.sh test     # 构建 + dev/ 下 11 个离线自测（不需要 Burp�
 
 * 本机 `services.gradle.org` 不通，`./gradlew` 会卡下载；`build.sh` 会自动退回 cache 里的 Gradle 8.14.3。
 * JDK 21（`JAVA_HOME`）；montoya-api 2026.7 为 `compileOnly`，不打进 jar。
-* 自测共 576 项断言：`dev/Harness.java`（解析/规则/模板/落盘/数组与对象容器行）、`dev/RecorderSmoke.java`（实时采集规则 + 记录类型 JSON/HTML）、`dev/HistorySmoke.java`（伪造 Proxy history + 开 HTML 后补捞）、`dev/DbSmoke.java`（SQLite 持久化 + 老 json 迁移 + 重启后容器行）、`dev/HeaderSmoke.java`（请求头解析与替换）、`dev/UrlSmoke.java`（还原时 query 保真）、`dev/PayloadSmoke.java`（三种 payload 格式）、`dev/BaseHeaderSmoke.java`（`base.headers` 全链路）、`dev/SamplesSmoke.java`（长度 + 参数形状双判重、`lengths` 列、重启后各档不串）、`dev/FilterSmoke.java`（单条件 + 高级条件 12 种关系 / 颜色列 / IP 分组 / 删除 / 导入 / 颜色标记落库与排序）、`dev/UiSmoke.java`（headless 界面、三开关搜索、高级搜索、按长度发送菜单、树的展开状态、颜色置顶/染色/右键菜单、类型按钮文字、复制参数值）。
+* 自测共 631 项断言：`dev/Harness.java`（解析/规则/模板/落盘/数组与对象容器行）、`dev/RecorderSmoke.java`（实时采集规则 + 记录类型 JSON/HTML）、`dev/HistorySmoke.java`（伪造 Proxy history + 开 HTML 后补捞）、`dev/DbSmoke.java`（SQLite 持久化 + 老 json 迁移 + 重启后容器行）、`dev/HeaderSmoke.java`（请求头解析与替换）、`dev/UrlSmoke.java`（还原时 query 保真）、`dev/PayloadSmoke.java`（三种 payload 格式）、`dev/BaseHeaderSmoke.java`（`base.headers` 全链路）、`dev/SamplesSmoke.java`（长度 + 参数形状双判重、`lengths` 列、重启后各档不串）、`dev/RulesSmoke.java`（设置页规则：glob / 默认黑名单 / 白名单 / 上限钳制 / 字段上限双端一致）、`dev/FilterSmoke.java`（单条件 + 高级条件 12 种关系 / 颜色列 / IP 分组 / 删除 / 导入 / 颜色标记落库与排序）、`dev/UiSmoke.java`（headless 界面、三开关搜索、高级搜索、按长度发送菜单、树的展开状态、颜色置顶/染色/右键菜单、类型按钮文字、复制参数值）。
 * classpath 里要带 `sqlite-jdbc`（`build.sh` 会自动找 gradle 缓存里的 jar）；jar 任务会把 native 一起解包。
 
 ## 在 Burp 里加载
 
 `Extensions → Installed → Add` → 类型 Java → 选 `build/libs/yuc-1.0.jar`。
-默认不采集，需在 `yuc v1.0` 标签页勾「开始采集」。
+默认不采集，需在 `Yuc` 标签页勾「开始采集」。
 
 ## 已知边界
 

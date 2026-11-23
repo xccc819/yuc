@@ -32,8 +32,8 @@ public class DbSmoke {
         check("新目录默认空库", s1.endpointCount() == 0);
         check("库文件已创建", new File(dir, EndpointStore.DB_FILE).exists());
 
-        s1.add(new Endpoint("GET", "https", "h5.aep.com.cn", 443, "/api/v1/list",
-                "https://h5.aep.com.cn/api/v1/list?page=1", "Proxy",
+        s1.add(new Endpoint("GET", "https", "h5.demo.com.cn", 443, "/api/v1/list",
+                "https://h5.demo.com.cn/api/v1/list?page=1", "Proxy",
                 List.<String[]>of(new String[]{"page", "1"}), new ArrayList<String[]>(),
                 "application/json", "", "application/json",
                 "{\"code\":0,\"data\":{\"list\":[{\"id\":10086}]}}", 200, 100));
@@ -52,7 +52,7 @@ public class DbSmoke {
 
         Endpoint list = find(s2, "/api/v1/list");
         check("重启后路径还在", list != null);
-        check("重启后域名还在", s2.domain("h5.aep.com.cn:443") != null);
+        check("重启后域名还在", s2.domain("h5.demo.com.cn:443") != null);
         check("重启后 query 参数还在", list != null && list.query.size() == 1
                 && list.query.get(0)[0].equals("page"));
         check("重启后请求头不存（符合设计）", list != null && list.requestHeaders.isEmpty());
@@ -61,7 +61,7 @@ public class DbSmoke {
                 && firstLine(list.rawRequestBytes()).equals("GET /api/v1/list?page=1 HTTP/1.1"));
 
         // 响应字段靠 DB 里那张 params 表撑起界面
-        List<Params.ParamStat> stats2 = Params.stats(s2.endpoints("h5.aep.com.cn:443"));
+        List<Params.ParamStat> stats2 = Params.stats(s2.endpoints("h5.demo.com.cn:443"));
         boolean hasCode = false;
         for (Params.ParamStat st : stats2) {
             if ("响应".equals(st.where) && st.name.equals("code")) {
@@ -86,8 +86,8 @@ public class DbSmoke {
                 Params.stats(List.of(save)).stream().noneMatch(st -> st.fullPath.equals("tags")));
 
         // 导出能力仍在
-        String json = yuc.MiniJson.pretty(TemplateBuilder.domainDoc("https", "h5.aep.com.cn", 443,
-                s2.endpoints("h5.aep.com.cn:443")));
+        String json = yuc.MiniJson.pretty(TemplateBuilder.domainDoc("https", "h5.demo.com.cn", 443,
+                s2.endpoints("h5.demo.com.cn:443")));
         check("重启后仍能导出模板", json.contains("/api/v1/list"));
         s2.shutdown();
 
@@ -102,7 +102,7 @@ public class DbSmoke {
         // ---------------------------- 老数据迁移
         File legacyDir = Files.createTempDirectory("yuc-legacy").toFile();
         String legacy = "{\n"
-                + "  \"base\": {\"scheme\": \"https\", \"host\": \"md.cnnc.cn\", \"port\": 443},\n"
+                + "  \"base\": {\"scheme\": \"https\", \"host\": \"md.demo.cn\", \"port\": 443},\n"
                 + "  \"items\": [{\n"
                 + "    \"id\": \"get-api-user-detail\",\n"
                 + "    \"name\": \"GET /api/user/detail\",\n"
@@ -125,11 +125,11 @@ public class DbSmoke {
                 + "    ]\n"
                 + "  }]\n"
                 + "}";
-        Files.writeString(new File(legacyDir, "md.cnnc.cn_443.json").toPath(), legacy, StandardCharsets.UTF_8);
+        Files.writeString(new File(legacyDir, "md.demo.cn_443.json").toPath(), legacy, StandardCharsets.UTF_8);
 
         EndpointStore s5 = store(legacyDir);
         check("老 json 被导入", s5.endpointCount() == 2);
-        check("导入的域名正确", s5.domain("md.cnnc.cn:443") != null);
+        check("导入的域名正确", s5.domain("md.demo.cn:443") != null);
 
         Endpoint detail = find(s5, "/api/user/detail");
         check("导入的 query 还在", detail != null && detail.query.size() == 1);

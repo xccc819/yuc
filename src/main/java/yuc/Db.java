@@ -114,6 +114,10 @@ public final class Db implements AutoCloseable {
                         + " target TEXT NOT NULL,"
                         + " color INTEGER NOT NULL,"
                         + " PRIMARY KEY(kind, scope, target))");
+                // 设置（黑白名单 / 上限）跟库走：换机器只拷 yuc.db 也能带走采集策略
+                s.execute("CREATE TABLE IF NOT EXISTS settings("
+                        + " key TEXT PRIMARY KEY,"
+                        + " value TEXT)");
                 s.execute("CREATE INDEX IF NOT EXISTS idx_params_name ON endpoint_params(name)");
                 s.execute("CREATE INDEX IF NOT EXISTS idx_params_ep ON endpoint_params(domain_key, dedupe_key)");
                 s.execute("CREATE INDEX IF NOT EXISTS idx_endpoints_path ON endpoints(path)");
@@ -135,6 +139,15 @@ public final class Db implements AutoCloseable {
      * 同一份请求体只存一遍，不做冗余。
      */
     public void saveDomain(String domainKey, List<EndpointStore.Group> groups) {
+        saveDomain(domainKey, groups, 0);
+    }
+
+    /**
+     * @param maxResponseFields 每个接口最多写多少个响应字段，0 = 不限。
+     *                          响应字段是这类库里行数的大头（一个 RPC 接口能有一千多个），
+     *                          卡住它最直接地控制库和内存。
+     */
+    public void saveDomain(String domainKey, List<EndpointStore.Group> groups, int maxResponseFields) {
         synchronized (lock) {
             try {
                 conn.setAutoCommit(false);
@@ -209,7 +222,7 @@ public final class Db implements AutoCloseable {
                         ep.setLong(15, now);
                         ep.setString(16, MiniJson.write(lengths));
                         ep.addBatch();
-                        addParams(pa, domainKey, primary.key, null, primary);
+                        addParams(pa, domainKey, primary.key, null, primary, maxResponseFields);
 
                         for (Endpoint e : all) {
                             if (e.responseLength == primary.responseLength) {
@@ -226,7 +239,7 @@ public final class Db implements AutoCloseable {
                             sp.setString(9, e.responseContentType);
                             sp.setLong(10, now);
                             sp.addBatch();
-                            addParams(spa, domainKey, e.key, e.responseLength, e);
+                            addParams(spa, domainKey, e.key, e.responseLength, e, maxResponseFields);
                         }
                     }
                     ep.executeBatch();
@@ -253,10 +266,10 @@ public final class Db implements AutoCloseable {
     }
 
     /** 把一个样本的参数行批量塞进预编译语句；{@code length} 为 null 表示主样本那两张表。 */
-    private static void addParams(PreparedStatement ps, String domainKey, String key, Long length, Endpoint ep)
-            throws SQLException {
+    private static void addParams(PreparedStatement ps, String domainKey, String key, Long length,
+                                  Endpoint ep, int maxResponseFields) throws SQLException {
         int seq = 0;
-        for (String[] row : paramRows(ep)) {
+        for (String[] row : paramRows(ep, maxResponseFields)) {
             ps.setString(1, domainKey);
             ps.setString(2, key);
             int i = 3;
@@ -273,7 +286,7 @@ public final class Db implements AutoCloseable {
     }
 
     /** 一个样本要入库的参数行：{location, name, value}。请求侧来自模板参数，响应侧来自字段清单。 */
-    private static List<String[]> paramRows(Endpoint ep) {
+    private static List<String[]> paramRows(Endpoint ep, int maxResponseFields) {
         List<String[]> out = new ArrayList<>();
         for (Map<String, Object> row : Params.templateParams(ep)) {
             String in = text(row.get("in"));
@@ -285,8 +298,16 @@ public final class Db implements AutoCloseable {
         }
         if (ep.responseBody != null && !ep.responseBody.isEmpty()) {
             final List<String[]> sink = out;
-            Params.walkKeys(MiniJson.tryParse(ep.responseBody), "", (name, value) -> sink.add(
-                    new String[]{"响应", name, value instanceof String ? (String) value : MiniJson.write(value)}));
+            final int limit = maxResponseFields <= 0 ? Integer.MAX_VALUE : maxResponseFields;
+            final int[] count = {0};
+            Params.walkKeys(MiniJson.tryParse(ep.responseBody), "", (name, value) -> {
+                if (count[0] >= limit) {
+                    return;
+                }
+                sink.add(new String[]{"响应", name,
+                        value instanceof String ? (String) value : MiniJson.write(value)});
+                count[0]++;
+            });
         } else {
             for (String[] f : ep.storedFields) {
                 out.add(new String[]{"响应", f[1], f[2]});
@@ -300,6 +321,50 @@ public final class Db implements AutoCloseable {
             return null;
         }
         return v instanceof String ? (String) v : MiniJson.write(v);
+    }
+
+    // ------------------------------------------------------------ 设置（跟库走）
+
+    public String getSetting(String key) {
+        synchronized (lock) {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT value FROM settings WHERE key=?")) {
+                ps.setString(1, key);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next() ? rs.getString(1) : null;
+                }
+            } catch (SQLException e) {
+                return null;
+            }
+        }
+    }
+
+    public void setSetting(String key, String value) {
+        synchronized (lock) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO settings(key,value) VALUES(?,?)"
+                            + " ON CONFLICT(key) DO UPDATE SET value=excluded.value")) {
+                ps.setString(1, key);
+                ps.setString(2, value);
+                ps.executeUpdate();
+            } catch (SQLException ignored) {
+                // 只读介质上存不了，本次会话内仍然生效
+            }
+        }
+    }
+
+    /** {接口数, 参数行数}：设置页展示用。 */
+    public long[] counts() {
+        synchronized (lock) {
+            try (Statement s = conn.createStatement();
+                 ResultSet a = s.executeQuery("SELECT COUNT(*) FROM endpoints");
+                 ResultSet b = s.executeQuery("SELECT COUNT(*) FROM endpoint_params")) {
+                long eps = a.next() ? a.getLong(1) : 0;
+                long params = b.next() ? b.getLong(1) : 0;
+                return new long[]{eps, params};
+            } catch (SQLException e) {
+                return new long[]{0, 0};
+            }
+        }
     }
 
     public void deleteDomain(String domainKey) {

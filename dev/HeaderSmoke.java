@@ -21,7 +21,7 @@ public class HeaderSmoke {
     public static void main(String[] args) throws Exception {
         // 1) 整段请求报文（带 body，body 里的 JSON 不能被当成头）
         String request = "POST /api/save HTTP/1.1\r\n"
-                + "Host: h5.aep.com.cn\r\n"
+                + "Host: h5.demo.com.cn\r\n"
                 + "Authorization: Bearer abc123\r\n"
                 + "Cookie: sid=xyz; theme=dark\r\n"
                 + "Content-Type: application/json\r\n"
@@ -56,8 +56,8 @@ public class HeaderSmoke {
         check("JSON 行不被误认", HeaderProfile.parse("\"name\": \"x\"").isEmpty());
 
         // 5) 替换效果
-        Endpoint ep = new Endpoint("POST", "https", "h5.aep.com.cn", 443, "/api/save",
-                "https://h5.aep.com.cn/api/save", "Proxy",
+        Endpoint ep = new Endpoint("POST", "https", "h5.demo.com.cn", 443, "/api/save",
+                "https://h5.demo.com.cn/api/save", "Proxy",
                 new ArrayList<String[]>(), new ArrayList<String[]>(),
                 List.<String[]>of(new String[]{"X-From-Sample", "1"}),
                 "{\"k\":\"v\"}".getBytes(StandardCharsets.UTF_8),
@@ -73,7 +73,7 @@ public class HeaderSmoke {
         check("配置的 Authorization 生效", replaced.contains("Authorization: Bearer abc123"));
         check("配置的 Cookie 生效", replaced.contains("Cookie: sid=xyz; theme=dark"));
         check("Host 由插件重算，不重复", count(replaced, "Host:") == 1);
-        check("Host 用的是样本域名", replaced.contains("Host: h5.aep.com.cn"));
+        check("Host 用的是样本域名", replaced.contains("Host: h5.demo.com.cn"));
         check("Content-Length 按实际 body 重算", replaced.contains("Content-Length: 9"));
         check("请求行保留原始 query", replaced.startsWith("POST /api/save HTTP/1.1"));
         check("body 在最后", replaced.endsWith("{\"k\":\"v\"}"));

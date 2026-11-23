@@ -66,6 +66,8 @@ public final class EndpointStore {
     private final ScheduledExecutorService writer;
     /** 行颜色标记（路径 / 参数）；跟样本数据分开存在 marks 表里，见 {@link Marks}。 */
     private final Marks marks = new Marks();
+    /** 收录范围与响应大小（黑/白名单、解析上限、字段上限）。 */
+    private final Settings settings;
 
     private volatile boolean recording;
     /** 空集 = 全部来源（和参数来源筛选同一套语义）。 */
@@ -105,6 +107,23 @@ public final class EndpointStore {
         this.recording = "1".equals(pref("recording", "0"));
         this.toolFilter = parseToolFilter(pref("tool", ""));
         this.recordTypes = parseRecordTypes(pref("types", ""));
+        // 设置存进 yuc.db（settings 表）：跟库走，不跟 Burp 工程走。
+        // 构造时库还没开，先拿到默认值；openDb() 之后再 reload() 一次读到真值。
+        this.settings = new Settings(new Settings.Prefs() {
+            @Override
+            public String get(String key) {
+                Db d = db;
+                return d == null ? null : d.getSetting(key);
+            }
+
+            @Override
+            public void set(String key, String value) {
+                Db d = db;
+                if (d != null) {
+                    d.setSetting(key, value);
+                }
+            }
+        });
         openDb();
         loadFromDb();
     }
@@ -131,11 +150,40 @@ public final class EndpointStore {
         }
         // 标记跟着库走：换库 = 换一套标记，不能把上一个目录的颜色带过来
         marks.attach(db);
+        // 设置也跟库走：换库 / 首次打开之后重新读一遍（没有库时退回默认值）
+        settings.reload();
     }
 
     /** 行颜色标记的读写入口；改完自己刷新界面即可，不会触发 {@link Listener}。 */
     public Marks marks() {
         return marks;
+    }
+
+    /** 收录范围 / 响应大小设置。改完调 {@link #saveSettings()} 落偏好。 */
+    public Settings settings() {
+        return settings;
+    }
+
+    public void saveSettings() {
+        settings.save();
+    }
+
+    /** {接口数, 参数行数}：设置页展示规模用；没有库时退回内存里的接口数。 */
+    public long[] dbCounts() {
+        Db d = db;
+        if (d == null) {
+            return new long[]{endpointCount(), 0};
+        }
+        try {
+            return d.counts();
+        } catch (RuntimeException e) {
+            return new long[]{endpointCount(), 0};
+        }
+    }
+
+    /** 这条请求在不在收录范围里（黑名单命中 → 否；白名单非空且没命中 → 否）。 */
+    public boolean allows(String host, String path) {
+        return settings.allows(host, path);
     }
 
     /** 启动时把库里的样本捞回内存——这就是「关掉 Burp 再打开，接口还在」的那一步。 */
@@ -468,7 +516,7 @@ public final class EndpointStore {
             return;
         }
         try {
-            d.saveDomain(domainKey, groups);
+            d.saveDomain(domainKey, groups, settings.maxResponseFields());
         } catch (RuntimeException e) {
             if (api != null) {
                 api.logging().logToError("[yuc] 写入数据库失败 " + domainKey + " —— " + e.getMessage());

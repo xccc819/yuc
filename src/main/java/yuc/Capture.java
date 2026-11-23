@@ -76,10 +76,17 @@ public final class Capture {
      * @return {@code null} = 丢弃；{@code ""} = 太大只记长度；否则是解码后的正文
      */
     public static String bodyOf(byte[] rawBody, String contentType, String kind) {
+        return bodyOf(rawBody, contentType, kind, MAX_PARSE);
+    }
+
+    /**
+     * @param maxParse 超过这么多字节就只记长度、不解析（可在设置里改，默认 4 MB）
+     */
+    public static String bodyOf(byte[] rawBody, String contentType, String kind, long maxParse) {
         if (rawBody == null || rawBody.length == 0) {
             return null; // 空响应没有字段可学
         }
-        if (rawBody.length > MAX_PARSE) {
+        if (rawBody.length > Math.max(64 * 1024L, maxParse)) {
             return ""; // 只记长度
         }
         String text = new String(rawBody, charsetOf(contentType));

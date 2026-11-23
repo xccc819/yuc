@@ -250,7 +250,7 @@ public final class Urls {
         return sb.toString();
     }
 
-    /** 这些是「公共后缀」，取根域时得多带一段：api.aep.com.cn → aep.com.cn 而不是 com.cn。 */
+    /** 这些是「公共后缀」，取根域时得多带一段：api.demo.com.cn → demo.com.cn 而不是 com.cn。 */
     private static final java.util.Set<String> SECOND_LEVEL = java.util.Set.of(
             "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn", "ac.cn",
             "com.hk", "com.tw", "com.mo", "com.sg", "com.au", "com.br", "com.tr", "com.ru",
@@ -258,7 +258,7 @@ public final class Urls {
 
     /**
      * 取根域名，用来给左侧树分组：
-     * {@code h5.aep.com.cn → aep.com.cn}，{@code api.example.co.uk → example.co.uk}。
+     * {@code h5.demo.com.cn → demo.com.cn}，{@code api.example.co.uk → example.co.uk}。
      * <p>
      * IP 走另一套：{@code 192.168.1.37 → 192.168.1.0/24}。一次测试里内网往往是一整段
      * （10.0.0.5 / 10.0.0.6 / 10.0.0.9…），按域名那套切出来是 {@code 1.37} 这种鬼东西，
@@ -316,7 +316,7 @@ public final class Urls {
         return true;
     }
 
-    /** {@code 10.2.3.4 → 10.2.3.0/24}；不是 IPv4 就返回 {@code ""}。 */
+    /** {@code 10.0.0.4 → 10.0.0.0/24}；不是 IPv4 就返回 {@code ""}。 */
     public static String ipv4Prefix24(String host) {
         if (!isIpv4(host)) {
             return "";

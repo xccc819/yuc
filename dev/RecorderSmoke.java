@@ -38,50 +38,50 @@ public class RecorderSmoke {
         store.setRecording(true);
         Recorder recorder = new Recorder(null, store);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/v1/list?page=1",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/v1/list?page=1",
                 "application/json", "{\"a\":1}", "application/json; charset=utf-8",
                 "{\"code\":0,\"data\":{\"list\":[{\"id\":1,\"name\":\"x\"}]}}", 200));
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/v1/list?page=2",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/v1/list?page=2",
                 "application/json", "{\"a\":1}", "application/json",
                 "{\"code\":0,\"data\":{\"list\":[{\"id\":2}]}}", 200));
-        check("同接口第二次（响应更短）不新增", store.endpoints("h5.aep.com.cn:443").size() == 1);
-        check("保留的是更长的那次", store.endpoints("h5.aep.com.cn:443").get(0).path.equals("/api/v1/list"));
+        check("同接口第二次（响应更短）不新增", store.endpoints("h5.demo.com.cn:443").size() == 1);
+        check("保留的是更长的那次", store.endpoints("h5.demo.com.cn:443").get(0).path.equals("/api/v1/list"));
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/static/app.js?v=1",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/static/app.js?v=1",
                 null, "", "application/json", "{\"a\":1}", 200));
-        check("末段含点号 → 跳过", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check("末段含点号 → 跳过", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/v1/user.json",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/v1/user.json",
                 null, "", "application/json", "{\"a\":1}", 200));
-        check(".json 后缀 → 跳过", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check(".json 后缀 → 跳过", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/x#frag",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/x#frag",
                 null, "", "application/json", "{\"a\":1}", 200));
-        check("带 # → 跳过", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check("带 # → 跳过", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/html",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/html",
                 null, "", "text/html", "<html><body>hi</body></html>", 200));
-        check("text/html 响应 → 跳过", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check("text/html 响应 → 跳过", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/fake",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/fake",
                 null, "", "application/json", "<html>oops</html>", 200));
-        check("头是 json 但内容是 HTML → 跳过", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check("头是 json 但内容是 HTML → 跳过", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
-        fire(recorder, resp("PROPFIND", "https://h5.aep.com.cn/api/prop",
+        fire(recorder, resp("PROPFIND", "https://h5.demo.com.cn/api/prop",
                 null, "", "application/json", "{\"a\":1}", 200));
-        check("非标准方法 → 跳过", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check("非标准方法 → 跳过", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/empty",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/empty",
                 null, "", "application/json", "", 204));
-        check("空响应体 → 跳过", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check("空响应体 → 跳过", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
-        fire(recorder, resp("POST", "https://h5.aep.com.cn/api/save",
+        fire(recorder, resp("POST", "https://h5.demo.com.cn/api/save",
                 "application/json", "{\"name\":\"张三\",\"n\":1}", "application/json",
                 "{\"code\":0}", 200));
-        check("正常 JSON 接口 → 收录", store.endpoints("h5.aep.com.cn:443").size() == 2);
+        check("正常 JSON 接口 → 收录", store.endpoints("h5.demo.com.cn:443").size() == 2);
 
         Endpoint saved = null;
-        for (Endpoint e : store.endpoints("h5.aep.com.cn:443")) {
+        for (Endpoint e : store.endpoints("h5.demo.com.cn:443")) {
             if (e.path.equals("/api/save")) {
                 saved = e;
             }
@@ -91,13 +91,13 @@ public class RecorderSmoke {
         String raw = saved == null ? "" : new String(saved.rawRequestBytes(), StandardCharsets.UTF_8);
         check("能拼回请求行", raw.startsWith("POST /api/save HTTP/1.1\r\n"));
         check("能拼回原始头", raw.contains("content-type: application/json"));
-        check("补上 Host", raw.contains("Host: h5.aep.com.cn"));
+        check("补上 Host", raw.contains("Host: h5.demo.com.cn"));
         check("body 原样保留", raw.endsWith("{\"name\":\"张三\",\"n\":1}"));
 
         store.flushAll();
-        String json = Files.readString(new java.io.File(store.dir(), "h5.aep.com.cn_443.json").toPath(),
+        String json = Files.readString(new java.io.File(store.dir(), "h5.demo.com.cn_443.json").toPath(),
                 StandardCharsets.UTF_8);
-        check("落盘文件名 域名_端口.json", json.contains("\"host\": \"h5.aep.com.cn\""));
+        check("落盘文件名 域名_端口.json", json.contains("\"host\": \"h5.demo.com.cn\""));
         System.out.println("[recorder]\n" + json);
 
         // ---------------------------------------- 记录类型：默认只 JSON，HTML 手动开
@@ -109,7 +109,7 @@ public class RecorderSmoke {
                 && store.recordTypes().contains("JSON"));
         int htmlBefore = store.endpointCount();
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/login.html",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/login.html",
                 null, "", "text/html; charset=utf-8", "<html><body>登录</body></html>", 200));
         check("开了 HTML 之后 .html 页面收下", store.endpointCount() == htmlBefore + 1);
 
@@ -121,15 +121,15 @@ public class RecorderSmoke {
                 page != null && page.responseContentType != null
                         && page.responseContentType.contains("text/html"));
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/login.html",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/login.html",
                 null, "", "text/html", "<html><body>登录</body></html>", 200));
         check("HTML 也走同一套去重（同长度不新增）", store.endpointCount() == htmlBefore + 1);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/logo.png",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/logo.png",
                 null, "", "image/png", "PNG-bytes", 200));
         check("图片仍然不进（类型不认，跟开关无关）", store.endpointCount() == htmlBefore + 1);
 
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/after-html",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/after-html",
                 null, "", "application/json", "{\"ok\":1}", 200));
         check("开了 HTML 也不影响 JSON 照收", store.endpointCount() == htmlBefore + 2);
 
@@ -147,7 +147,7 @@ public class RecorderSmoke {
         // 关掉采集开关后一条都不收
         store.setRecording(false);
         int before = store.endpointCount();
-        fire(recorder, resp("GET", "https://h5.aep.com.cn/api/other",
+        fire(recorder, resp("GET", "https://h5.demo.com.cn/api/other",
                 null, "", "application/json", "{\"a\":1}", 200));
         check("未勾选采集 → 不记录", store.endpointCount() == before);
 

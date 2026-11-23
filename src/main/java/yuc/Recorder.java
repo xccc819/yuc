@@ -66,6 +66,10 @@ public final class Recorder implements HttpHandler {
         if (!Capture.urlOk(url)) {
             return; // 带 # 的直接排除（锚点不是发给后端的）
         }
+        // 收录范围：黑名单命中 / 不在白名单里 → 直接丢（这是一切判断之前最便宜的一步）
+        if (!store.allows(request.httpService().host(), Urls.path(url))) {
+            return;
+        }
 
         // 先看响应类型再判路径：静态资源那条规则是给 JSON 用的，
         // HTML 页面（/index.html、/login.jsp）恰恰是要收的东西，不能按「末段含点号」挡掉
@@ -79,7 +83,8 @@ public final class Recorder implements HttpHandler {
         }
 
         byte[] rawBody = response.body() == null ? new byte[0] : response.body().getBytes();
-        String responseText = Capture.bodyOf(rawBody, responseType, kind);
+        String responseText = Capture.bodyOf(rawBody, responseType, kind,
+                store.settings().maxParseBytes());
         if (responseText == null) {
             return;
         }

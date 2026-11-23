@@ -69,7 +69,7 @@ fi
 
 mkdir -p dev/out
 "${JAVA_BIN}javac" -encoding UTF-8 -cp "$CP" -d dev/out dev/*.java
-for t in Harness RecorderSmoke HistorySmoke DbSmoke HeaderSmoke UrlSmoke PayloadSmoke BaseHeaderSmoke SamplesSmoke FilterSmoke UiSmoke; do
+for t in Harness RecorderSmoke HistorySmoke DbSmoke HeaderSmoke UrlSmoke PayloadSmoke BaseHeaderSmoke SamplesSmoke FilterSmoke RulesSmoke UiSmoke; do
   echo "== $t"
   "${JAVA_BIN}java" -Dfile.encoding=UTF-8 -cp "$CP${SEP}dev/out" "$t"
 done

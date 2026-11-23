@@ -32,7 +32,7 @@ import java.util.List;
 public class SamplesSmoke {
 
     static int failed = 0;
-    static final String DK = "h5.aep.com.cn:443";
+    static final String DK = "h5.demo.com.cn:443";
 
     public static void main(String[] args) throws Exception {
         scenarioA();
@@ -180,7 +180,7 @@ public class SamplesSmoke {
         s1.flushAll();
 
         // 导出的模板只描述主样本：一个接口一条 item
-        String json = Files.readString(new File(dir, "h5.aep.com.cn_443.json").toPath(), StandardCharsets.UTF_8);
+        String json = Files.readString(new File(dir, "h5.demo.com.cn_443.json").toPath(), StandardCharsets.UTF_8);
         Object doc = MiniJson.parse(json);
         List<?> items = (List<?>) ((java.util.Map<?, ?>) doc).get("items");
         check("模板里接口数仍是 2（不按档膨胀）", items.size() == 2);
@@ -217,8 +217,8 @@ public class SamplesSmoke {
     // ---------------------------------------------------------------- 工具
 
     static Endpoint ep(String path, long len, String requestBody, String responseBody) {
-        return new Endpoint("POST", "https", "h5.aep.com.cn", 443, path,
-                "https://h5.aep.com.cn" + path, "Proxy",
+        return new Endpoint("POST", "https", "h5.demo.com.cn", 443, path,
+                "https://h5.demo.com.cn" + path, "Proxy",
                 new ArrayList<>(), new ArrayList<>(),
                 "application/json", requestBody,
                 "application/json", responseBody, 200, len);
@@ -226,16 +226,16 @@ public class SamplesSmoke {
 
     /** 只有一对查询参数、没有请求体的样本。 */
     static Endpoint query(String path, String name, String value, long len) {
-        return new Endpoint("GET", "https", "h5.aep.com.cn", 443, path,
-                "https://h5.aep.com.cn" + path + "?" + name + "=" + value, "Proxy",
+        return new Endpoint("GET", "https", "h5.demo.com.cn", 443, path,
+                "https://h5.demo.com.cn" + path + "?" + name + "=" + value, "Proxy",
                 List.<String[]>of(new String[]{name, value}), new ArrayList<String[]>(),
                 null, "", "application/json", "{\"code\":0}", 200, len);
     }
 
     /** 原始报文体（XML 之类）：认不出参数名，判重时不参与。 */
     static Endpoint raw(String path, long len, String body) {
-        return new Endpoint("POST", "https", "h5.aep.com.cn", 443, path,
-                "https://h5.aep.com.cn" + path, "Proxy",
+        return new Endpoint("POST", "https", "h5.demo.com.cn", 443, path,
+                "https://h5.demo.com.cn" + path, "Proxy",
                 new ArrayList<>(), new ArrayList<>(),
                 "text/xml", body,
                 "text/xml", "<ok/>", 200, len);

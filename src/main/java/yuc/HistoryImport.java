@@ -135,6 +135,10 @@ public final class HistoryImport {
         if (!Capture.urlOk(url)) {
             return DROP;
         }
+        HttpService svc = request.httpService();
+        if (svc == null || !store.allows(svc.host(), Urls.path(url))) {
+            return DROP;   // 收录范围（黑/白名单）跟实时采集同一套
+        }
 
         String responseType = response.headerValue("Content-Type");
         String kind = Capture.kindOf(responseType);
@@ -147,7 +151,8 @@ public final class HistoryImport {
         }
 
         byte[] rawBody = response.body() == null ? new byte[0] : response.body().getBytes();
-        String responseText = Capture.bodyOf(rawBody, responseType, kind);
+        String responseText = Capture.bodyOf(rawBody, responseType, kind,
+                store.settings().maxParseBytes());
         if (responseText == null) {
             return DROP;
         }

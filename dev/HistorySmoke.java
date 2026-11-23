@@ -35,24 +35,24 @@ public class HistorySmoke {
         store.setRecording(false);
 
         List<ProxyHttpRequestResponse> history = new ArrayList<>();
-        history.add(item("GET", "https://h5.aep.com.cn/api/v1/list?page=1",
+        history.add(item("GET", "https://h5.demo.com.cn/api/v1/list?page=1",
                 null, "", "application/json", "{\"a\":1}", 200, true));
-        history.add(item("GET", "https://h5.aep.com.cn/api/v1/list?page=2",
+        history.add(item("GET", "https://h5.demo.com.cn/api/v1/list?page=2",
                 null, "", "application/json", "{\"a\":1,\"b\":2}", 200, true));
-        history.add(item("GET", "https://h5.aep.com.cn/static/app.js?v=1",
+        history.add(item("GET", "https://h5.demo.com.cn/static/app.js?v=1",
                 null, "", "application/json", "{\"a\":1}", 200, true));
-        history.add(item("GET", "https://h5.aep.com.cn/api/html",
+        history.add(item("GET", "https://h5.demo.com.cn/api/html",
                 null, "", "text/html", "<html>hi</html>", 200, true));
-        history.add(item("GET", "https://h5.aep.com.cn/api/none",
+        history.add(item("GET", "https://h5.demo.com.cn/api/none",
                 null, "", "application/json", "", 0, false));
-        history.add(item("PROPFIND", "https://h5.aep.com.cn/api/prop",
+        history.add(item("PROPFIND", "https://h5.demo.com.cn/api/prop",
                 null, "", "application/json", "{\"a\":1}", 200, true));
         history.add(item("POST", "https://api.example.com/v1/save",
                 "application/json", "{\"x\":1}", "application/json", "{\"ok\":true}", 200, true));
-        history.add(item("GET", "https://h5.aep.com.cn/api/fake",
+        history.add(item("GET", "https://h5.demo.com.cn/api/fake",
                 null, "", "application/json", "<html>oops</html>", 200, true));
         // HTML 页面：默认类型里没有 HTML，所以这一条应该被类型挡掉
-        history.add(item("GET", "https://h5.aep.com.cn/page.html",
+        history.add(item("GET", "https://h5.demo.com.cn/page.html",
                 null, "", "text/html", "<html><body>page</body></html>", 200, true));
         // 同一接口第二次、请求体多了一个字段：参数形状变了 → 该留一档，且更长的当主样本
         history.add(item("POST", "https://api.example.com/v2/save",
@@ -101,7 +101,7 @@ public class HistorySmoke {
         check("结果摘要不含 null", !r.summary().contains("null"));
 
         store.flushAll();
-        java.io.File f = new java.io.File(store.dir(), "h5.aep.com.cn_443.json");
+        java.io.File f = new java.io.File(store.dir(), "h5.demo.com.cn_443.json");
         check("落盘 域名_端口.json", f.exists());
         String json = f.exists() ? Files.readString(f.toPath(), StandardCharsets.UTF_8) : "";
         check("落盘内容含接口路径", json.contains("/api/v1/list"));

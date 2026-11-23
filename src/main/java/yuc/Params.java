@@ -308,6 +308,15 @@ public final class Params {
      *                    所以每个样本都算一次「用到」，接口数自然等于接口总数。
      */
     public static List<ParamStat> stats(List<Endpoint> endpoints, Map<String, String> baseHeaders) {
+        return stats(endpoints, baseHeaders, 0);
+    }
+
+    /**
+     * @param maxResponseFields 每个接口最多看多少个响应字段，0 = 不限。
+     *                          跟落库那边同一套上限，否则界面上会比库里多出一截。
+     */
+    public static List<ParamStat> stats(List<Endpoint> endpoints, Map<String, String> baseHeaders,
+                                        int maxResponseFields) {
         Map<String, ParamStat> index = new LinkedHashMap<>();
         List<String[]> shared = HeaderPolicy.asPairs(baseHeaders);
         for (Endpoint ep : endpoints) {
@@ -340,14 +349,30 @@ public final class Params {
                 add(index, h[0], "请求头", clipHeader(h[1]), h[1], ep);
             }
             // 响应字段：实时样本有正文，从正文里挖；从数据库恢复的样本没有正文，用它存下的字段清单
+            int limit = maxResponseFields <= 0 ? Integer.MAX_VALUE : maxResponseFields;
             if (ep.responseBody != null && !ep.responseBody.isEmpty()) {
                 Object json = MiniJson.tryParse(ep.responseBody);
-                walkKeys(json, "",
-                        (name, value) -> add(index, name, "响应", sample(value), full(value), ep));
-                walkContainers(json, "", (name, text) ->
-                        add(index, name, "响应", clipContainers(text), text, ep));
+                int[] count = {0};
+                walkKeys(json, "", (name, value) -> {
+                    if (count[0] >= limit) {
+                        return;
+                    }
+                    add(index, name, "响应", sample(value), full(value), ep);
+                    count[0]++;
+                });
+                walkContainers(json, "", (name, text) -> {
+                    if (count[0] >= limit) {
+                        return;
+                    }
+                    add(index, name, "响应", clipContainers(text), text, ep);
+                    count[0]++;
+                });
             } else {
+                int n = 0;
                 for (String[] f : ep.storedFields) {
+                    if (n++ >= limit) {
+                        break;
+                    }
                     add(index, f.length > 1 ? f[1] : f[0], "响应", f.length > 2 ? f[2] : "", ep);
                 }
             }

@@ -79,7 +79,7 @@ public class FilterSmoke {
         row.put("bytes", "1280");
         row.put("params", "3");
         row.put("tool", "Proxy");
-        row.put("url", "https://h5.aep.com.cn/api/User/Detail?page=1");
+        row.put("url", "https://h5.demo.com.cn/api/User/Detail?page=1");
 
         // 文本关系
         check("包含（忽略大小写）", hit("path", SearchRule.Op.CONTAINS, "user", row, true));
@@ -182,7 +182,7 @@ public class FilterSmoke {
     // ------------------------------------------------------------ IP /24 归组
 
     static void ipGrouping() {
-        check("识别 IPv4", Urls.isIpv4("10.2.3.4"));
+        check("识别 IPv4", Urls.isIpv4("10.0.0.4"));
         check("识别 IPv4（边界 255）", Urls.isIpv4("255.255.255.255"));
         check("256 不算 IPv4", !Urls.isIpv4("256.1.1.1"));
         check("四段以外不算", !Urls.isIpv4("1.2.3"));
@@ -190,11 +190,11 @@ public class FilterSmoke {
         check("字母不算", !Urls.isIpv4("a.b.c.d"));
         check("空不算", !Urls.isIpv4(""));
 
-        check("IP 按 /24 收起", "10.2.3.0/24".equals(Urls.rootDomain("10.2.3.4")));
-        check("同段 IP 归到同一组", Urls.rootDomain("10.2.3.9").equals(Urls.rootDomain("10.2.3.4")));
-        check("不同段分到不同组", !Urls.rootDomain("10.2.4.9").equals(Urls.rootDomain("10.2.3.4")));
-        check("域名仍按根域", "aep.com.cn".equals(Urls.rootDomain("h5.aep.com.cn")));
-        check("二级后缀仍多带一段", "aep.com.cn".equals(Urls.rootDomain("api.h5.aep.com.cn")));
+        check("IP 按 /24 收起", "10.0.0.0/24".equals(Urls.rootDomain("10.0.0.4")));
+        check("同段 IP 归到同一组", Urls.rootDomain("10.0.0.9").equals(Urls.rootDomain("10.0.0.4")));
+        check("不同段分到不同组", !Urls.rootDomain("10.2.4.9").equals(Urls.rootDomain("10.0.0.4")));
+        check("域名仍按根域", "demo.com.cn".equals(Urls.rootDomain("h5.demo.com.cn")));
+        check("二级后缀仍多带一段", "demo.com.cn".equals(Urls.rootDomain("api.h5.demo.com.cn")));
         check("单段 host 原样", "localhost".equals(Urls.rootDomain("localhost")));
         check("IPv6 原样当一组", "::1".equals(Urls.rootDomain("::1")));
         check("IP 前缀函数对非 IP 返回空", Urls.ipv4Prefix24("a.b").isEmpty());
@@ -231,12 +231,12 @@ public class FilterSmoke {
     static void deleteAndImport() throws Exception {
         File dir = tempDir();
         EndpointStore store = store(dir);
-        store.add(ep("h5.aep.com.cn", 443, "POST", "/api/list", 200, "{\"a\":1}"));
-        store.add(ep("h5.aep.com.cn", 443, "POST", "/api/save", 300, "{\"b\":2}"));
-        store.add(ep("10.2.3.4", 8080, "GET", "/svc/ping", 90, "{\"ok\":1}"));
+        store.add(ep("h5.demo.com.cn", 443, "POST", "/api/list", 200, "{\"a\":1}"));
+        store.add(ep("h5.demo.com.cn", 443, "POST", "/api/save", 300, "{\"b\":2}"));
+        store.add(ep("10.0.0.4", 8080, "GET", "/svc/ping", 90, "{\"ok\":1}"));
         store.flushAll(); // 平时是 1.2s 防抖，测试里直接落盘
 
-        File listJson = new File(dir, "h5.aep.com.cn_443.json");
+        File listJson = new File(dir, "h5.demo.com.cn_443.json");
         check("落盘了 json", listJson.isFile());
         check("json 里有两个 item",
                 String.valueOf(MiniJson.tryParse(new String(Files.readAllBytes(listJson.toPath()), StandardCharsets.UTF_8)))
@@ -250,18 +250,18 @@ public class FilterSmoke {
         String after = new String(Files.readAllBytes(listJson.toPath()), StandardCharsets.UTF_8);
         check("json 里不再有 /api/save", !after.contains("/api/save"));
         check("json 里仍有 /api/list", after.contains("/api/list"));
-        check("内存里剩 1 个接口", store.endpoints("h5.aep.com.cn:443").size() == 1);
+        check("内存里剩 1 个接口", store.endpoints("h5.demo.com.cn:443").size() == 1);
 
         // 删掉最后一个接口 → 整个域名连文件一起收掉，不留空节点
         store.removeEndpoints(List.of(find(store, "/api/list")));
-        check("删空后域名节点消失", store.domain("h5.aep.com.cn:443") == null);
+        check("删空后域名节点消失", store.domain("h5.demo.com.cn:443") == null);
         check("删空后 json 文件也没了", !listJson.isFile());
 
         // 整域名删除（IP 那个）
-        check("IP 域名在", store.domain("10.2.3.4:8080") != null);
-        check("删域名返回 true", store.removeDomain("10.2.3.4:8080"));
-        check("再删一次返回 false", !store.removeDomain("10.2.3.4:8080"));
-        check("IP 的 json 也没了", !new File(dir, "10.2.3.4_8080.json").isFile());
+        check("IP 域名在", store.domain("10.0.0.4:8080") != null);
+        check("删域名返回 true", store.removeDomain("10.0.0.4:8080"));
+        check("再删一次返回 false", !store.removeDomain("10.0.0.4:8080"));
+        check("IP 的 json 也没了", !new File(dir, "10.0.0.4_8080.json").isFile());
         check("全部删空", store.endpointCount() == 0);
 
         // 导入：同一个接口导两次只加一次
@@ -296,8 +296,8 @@ public class FilterSmoke {
     static void marks() throws Exception {
         File dir = tempDir();
         EndpointStore s1 = store(dir);
-        s1.add(ep("h5.aep.com.cn", 443, "GET", "/api/list", 200, "{\"a\":1}"));
-        s1.add(ep("10.2.3.4", 8080, "GET", "/svc/ping", 90, "{\"ok\":1}"));
+        s1.add(ep("h5.demo.com.cn", 443, "GET", "/api/list", 200, "{\"a\":1}"));
+        s1.add(ep("10.0.0.4", 8080, "GET", "/svc/ping", 90, "{\"ok\":1}"));
 
         Endpoint list = find(s1, "/api/list");
         Endpoint ping = find(s1, "/svc/ping");
@@ -326,11 +326,11 @@ public class FilterSmoke {
         check("重启后没标的那条还是没标", s2.marks().color(Marks.PATH, ping.domainKey(), pingKey) == 0);
 
         // 重新抓到同一个接口（key 不变），颜色自己就回来
-        s2.add(ep("h5.aep.com.cn", 443, "GET", "/api/list", 260, "{\"a\":1,\"b\":2}"));
+        s2.add(ep("h5.demo.com.cn", 443, "GET", "/api/list", 260, "{\"a\":1,\"b\":2}"));
         check("重新抓到的同一接口仍带颜色", s2.marks().color(Marks.PATH, list.domainKey(), listKey) == 1);
 
         // 删域名：这个域名的路径颜色一起收，参数颜色是跨域名的，留着
-        s2.removeDomain("h5.aep.com.cn:443");
+        s2.removeDomain("h5.demo.com.cn:443");
         check("删域名后它的路径颜色没了",
                 s2.marks().color(Marks.PATH, list.domainKey(), listKey) == 0);
         check("删域名不动参数颜色", s2.marks().color(Marks.PARAM, "", pageKey) == 5);
